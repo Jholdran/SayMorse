@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es-419" data-tema="dia">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SayMorse — Tu voz en puntos y rayas</title>
+  <meta name="description" content="SayMorse: habla o escribe y convierte tu mensaje a código Morse, o traduce Morse a texto. Con sonido y luz.">
+  <meta name="theme-color" content="#f7f0e1">
+
+  <!-- Ícono de la pestaña: simple y legible en tamaño pequeño (va incrustado, no necesita archivo) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' gradientUnits='userSpaceOnUse' x1='0' y1='0' x2='64' y2='0'%3E%3Cstop offset='0' stop-color='%232f84c4'/%3E%3Cstop offset='.55' stop-color='%234aa0f6'/%3E%3Cstop offset='1' stop-color='%23b65ded'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg fill='url(%23g)'%3E%3Crect x='3' y='24' width='9' height='16' rx='4.5'/%3E%3Crect x='16' y='12' width='9' height='40' rx='4.5'/%3E%3Crect x='29' y='2' width='9' height='60' rx='4.5'/%3E%3Crect x='42' y='16' width='9' height='32' rx='4.5'/%3E%3Ccircle cx='58' cy='32' r='4.5'/%3E%3C/g%3E%3C/svg%3E">
+
+  <!-- Aplica el tema guardado antes de pintar la página (evita parpadeos) -->
+  <script>
+    (function () {
+      try {
+        var guardado = localStorage.getItem("saymorse-tema");
+        var oscuro = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var tema = guardado || (oscuro ? "noche" : "dia");
+        document.documentElement.setAttribute("data-tema", tema);
+      } catch (e) {
+        document.documentElement.setAttribute("data-tema", "dia");
+      }
+    })();
+  </script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Decoración lateral (solo en pantallas anchas) -->
+  <div class="decor decor-izq" aria-hidden="true"></div>
+  <div class="decor decor-der" aria-hidden="true"></div>
+
+  <main class="contenedor">
+
+    <!-- Cabecera: logo al lado del nombre a la izquierda; idioma y modo noche a la derecha -->
+    <header class="cabecera">
+      <a href="index.html" class="marca-link" style="text-decoration: none; color: inherit;">
+        <div class="marca">
+          <img class="logo" src="img/logo.png" alt="Logo de SayMorse" width="128" height="64">
+          <div class="marca-texto">
+            <h1>Say<span class="acento">Morse</span></h1>
+            <p class="subtitulo" data-i18n="subtitulo">Tu voz en puntos y rayas</p>
+          </div>
+        </div>
+      </a>
+
+      <div class="cabecera-derecha">
+        <p class="brand-morse" aria-hidden="true">... .- -.-- -- --- .-. ... .</p>
+
+        <div class="selector-idioma" role="group" aria-label="Idioma / Language">
+          <button id="btn-es" type="button" class="op-idioma" lang="es" aria-pressed="true">ES</button>
+          <button id="btn-en" type="button" class="op-idioma" lang="en" aria-pressed="false">EN</button>
+        </div>
+
+        <button id="btn-tema" type="button" class="btn-tema" aria-label="Cambiar a modo noche">
+          <span class="tema-icono">🌙</span>
+          <span class="tema-texto">Noche</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ENTRADA -->
+    <section class="caja">
+      <div class="caja-encabezado">
+        <h2 id="titulo-entrada" data-i18n="tuMensaje">Tu mensaje</h2>
+        <button id="btn-borrar" type="button" class="btn-icono" hidden
+                data-i18n-title="borrarTodo" data-i18n-aria="borrarTodo"
+                title="Borrar todo" aria-label="Borrar todo">🗑️</button>
+      </div>
+
+      <textarea id="mensaje" rows="4" aria-label="Tu mensaje"
+                placeholder="Habla con el micrófono o escribe aquí tu mensaje..."></textarea>
+
+      <p id="ayuda-entrada" class="ayuda" data-i18n="ayudaEntrada" hidden>
+        Usa puntos (.), rayas (-), un espacio entre letras y una barra / entre palabras.
+      </p>
+
+      <!-- Controles de voz (modo Texto → Morse) -->
+      <div id="panel-voz" class="panel-voz">
+        <button id="btn-micro" type="button" class="btn btn-micro">🎤 Dictar</button>
+
+        <div class="estado">
+          <span id="indicador" class="indicador"></span>
+          <span id="texto-estado">Micrófono apagado</span>
+        </div>
+      </div>
+
+      <!-- Teclado Morse (modo Morse → Texto) -->
+      <div id="panel-teclado" class="teclado" hidden>
+        <button id="btn-punto" type="button" class="tecla tecla-punto" data-i18n-aria="ariaPunto" aria-label="Punto">•<small data-i18n="punto">punto</small></button>
+        <button id="btn-raya" type="button" class="tecla tecla-raya" data-i18n-aria="ariaRaya" aria-label="Raya">—<small data-i18n="raya">raya</small></button>
+        <button id="btn-letra" type="button" class="tecla" data-i18n-aria="ariaLetra" aria-label="Espacio entre letras">␣<small data-i18n="letra">letra</small></button>
+        <button id="btn-palabra" type="button" class="tecla" data-i18n-aria="ariaPalabra" aria-label="Separador de palabras">/<small data-i18n="palabra">palabra</small></button>
+        <button id="btn-retroceso" type="button" class="tecla tecla-borrar" data-i18n-aria="ariaBorrar" aria-label="Borrar un carácter">⌫<small data-i18n="borrar">borrar</small></button>
+      </div>
+    </section>
+
+    <!-- BOTÓN PARA INVERTIR LA DIRECCIÓN -->
+    <div class="modo">
+      <span id="chip-origen" class="chip">Texto</span>
+      <button id="btn-invertir" type="button" class="btn-invertir"
+              data-i18n-title="invertir" data-i18n-aria="invertirAria"
+              title="Invertir dirección" aria-label="Invertir dirección de la traducción">⇄</button>
+      <span id="chip-destino" class="chip chip-destino">Morse</span>
+    </div>
+
+    <!-- SALIDA -->
+    <section id="caja-salida" class="caja caja-salida">
+      <div class="caja-encabezado">
+        <h2 id="titulo-salida">Código Morse</h2>
+        <span id="luz-morse" class="luz" data-i18n-title="luzTitulo" title="Luz del telégrafo"></span>
+      </div>
+
+      <div id="resultado" class="salida morse" data-vacio="El Morse aparecerá aquí..."></div>
+
+      <!-- Barra de progreso: muestra cuánto va de la transmisión -->
+      <div class="progreso" aria-hidden="true">
+        <div id="barra-progreso" class="progreso-barra"></div>
+      </div>
+
+      <!-- Leyenda de la guía de colores -->
+      <ul class="leyenda" aria-hidden="true">
+        <li class="ley-item ley-pendiente"><span data-i18n="leyPendiente">Por sonar</span></li>
+        <li class="ley-item ley-ahora"><span data-i18n="leyAhora">Sonando ahora</span></li>
+        <li class="ley-item ley-hecho"><span data-i18n="leyHecho">Ya sonó</span></li>
+      </ul>
+
+      <div class="acciones">
+        <button id="btn-transmitir" type="button" class="btn btn-transmitir" disabled>▶ Transmitir</button>
+        <button id="btn-copiar" type="button" class="btn btn-copiar" disabled>📋 Copiar Morse</button>
+      </div>
+    </section>
+
+    <!-- AJUSTES -->
+    <section class="caja">
+      <h2 data-i18n="ajustesSonido">Ajustes de sonido</h2>
+      <div class="ajustes">
+        <label class="ajuste">
+          <span><span data-i18n="velocidad">⏱ Velocidad:</span> <b id="valor-velocidad">10</b> <span data-i18n="ppm">ppm</span></span>
+          <input type="range" id="velocidad" min="3" max="15" value="10">
+        </label>
+
+        <label class="ajuste">
+          <span><span data-i18n="tono">🎵 Tono:</span> <b id="valor-tono">600</b> Hz</span>
+          <input type="range" id="tono" min="400" max="1000" step="10" value="600">
+          <span class="extremos"><span data-i18n="grave">Grave</span><span data-i18n="agudo">Agudo</span></span>
+        </label>
+
+        <label class="ajuste ajuste-check">
+          <input type="checkbox" id="chk-sonido" checked>
+          <span data-i18n="sonidoActivado">🔊 Sonido activado</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- ARDUINO (BLUETOOTH) -->
+    <section class="caja">
+      <h2 data-i18n="arduinoTitulo">Conexión con Arduino (Bluetooth)</h2>
+      <p class="ayuda" data-i18n="arduinoAyuda">Conecta tu módulo Bluetooth para que el LED y el zumbador del Arduino se enciendan y suenen igual que la luz de la página.</p>
+
+      <div class="panel-voz">
+        <button id="btn-arduino" type="button" class="btn btn-micro">🔌 Conectar Arduino</button>
+        <button id="btn-arduino-prueba" type="button" class="btn btn-copiar" data-i18n="arduinoProbar" disabled>💡 Probar</button>
+
+        <div class="estado">
+          <span id="luz-arduino" class="luz"></span>
+          <span id="texto-arduino">Arduino desconectado</span>
+        </div>
+
+        <label class="campo">
+          <span data-i18n="arduinoModulo">Módulo</span>
+          <select id="tipo-bluetooth">
+            <option value="ble" data-i18n="optBle">BLE (HM-10, AT-09, JDY-08)</option>
+            <option value="serial" data-i18n="optSerial">Clásico (HC-05, HC-06): solo computador</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <!-- DICCIONARIO -->
+    <section class="caja">
+      <h2 data-i18n="diccionario">Diccionario Morse</h2>
+      <p class="ayuda" data-i18n="tocaLetra">Toca una letra o un número para oírlo.</p>
+
+      <h3 data-i18n="letras">Letras</h3>
+      <div id="dic-letras" class="dic"></div>
+
+      <h3 data-i18n="numeros">Números</h3>
+      <div id="dic-numeros" class="dic"></div>
+
+      <p class="nota" data-i18n="nota">
+        Un punto dura una unidad y una raya, tres. Entre las señales de una misma letra
+        hay una unidad de silencio, tres entre letras y siete entre palabras.
+        Las tildes se transmiten sin acento y la Ñ tiene su propio código (--.--).
+      </p>
+    </section>
+
+    <footer class="pie" data-i18n="pie">SayMorse · Tu voz en puntos y rayas</footer>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
